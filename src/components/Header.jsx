@@ -34,14 +34,18 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <a href="#hero" className="flex items-center gap-2 group">
-            <span className="text-2xl">⏳</span>
-            <span className="font-serif text-xl md:text-2xl font-bold text-gold group-hover:text-gold-light transition-colors">
-              TimeTravel
-            </span>
-            <span className="hidden sm:inline text-xs text-gray-400 uppercase tracking-[0.3em] mt-1">
-              Agency
-            </span>
+          <a href="#hero" className="flex items-center gap-2.5 group">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gold to-gold-dark flex items-center justify-center text-dark text-sm font-bold shadow-md shadow-gold/20 group-hover:shadow-gold/40 transition-shadow">
+              TT
+            </div>
+            <div className="flex flex-col">
+              <span className="font-serif text-lg md:text-xl font-bold text-white leading-none group-hover:text-gold transition-colors">
+                TimeTravel
+              </span>
+              <span className="text-[9px] text-gold/50 uppercase tracking-[0.35em] leading-none">
+                Agency
+              </span>
+            </div>
           </a>
 
           {/* Desktop Nav */}

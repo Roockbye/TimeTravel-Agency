@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { quizQuestions, destinations } from '../data/destinations';
 
+const optionLetters = ['α', 'β', 'γ', 'δ'];
+
 export default function Quiz() {
   const [currentQ, setCurrentQ] = useState(0);
   const [scores, setScores] = useState({ 'paris-1889': 0, 'cretace-65m': 0, 'florence-1504': 0 });
@@ -18,7 +20,6 @@ export default function Quiz() {
     if (currentQ + 1 < quizQuestions.length) {
       setCurrentQ(currentQ + 1);
     } else {
-      // Find winner
       const winnerId = Object.entries(newScores).sort((a, b) => b[1] - a[1])[0][0];
       const winner = destinations.find((d) => d.id === winnerId);
       setResult(winner);
@@ -33,22 +34,32 @@ export default function Quiz() {
   };
 
   return (
-    <section id="quiz" className="py-24 px-4 relative">
-      <div className="max-w-3xl mx-auto">
+    <section id="quiz" className="py-28 px-4 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 right-0 w-96 h-96 bg-accent/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-gold/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-3xl mx-auto relative z-10">
         {/* Section heading */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-12"
+          className="text-center mb-14"
         >
-          <p className="text-gold uppercase tracking-[0.3em] text-sm mb-4">Trouvez votre époque</p>
-          <h2 className="font-serif text-4xl md:text-5xl font-bold text-white mb-6">
-            Quiz Personnalisé
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-accent/20 bg-accent/5 mb-6">
+            <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse" />
+            <span className="text-accent text-xs uppercase tracking-[0.25em]">Diagnostic temporel</span>
+          </div>
+          <h2 className="font-serif text-4xl md:text-5xl font-bold mb-6">
+            <span className="text-gradient">Trouvez</span>{' '}
+            <span className="text-white">Votre Époque</span>
           </h2>
-          <p className="text-gray-400 text-lg">
-            Répondez à 4 questions et découvrez la destination temporelle faite pour vous.
+          <p className="text-gray-500 text-lg max-w-lg mx-auto">
+            4 questions pour calibrer votre profil chrono et révéler la destination qui vous attend.
           </p>
         </motion.div>
 
@@ -58,68 +69,89 @@ export default function Quiz() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="bg-dark-card border border-dark-border rounded-2xl p-8 md:p-10 shadow-lg shadow-black/20"
+          className="glass-card rounded-2xl p-8 md:p-10 relative"
         >
+          {/* Decorative corner accents */}
+          <div className="absolute top-0 left-0 w-16 h-16 border-t border-l border-gold/10 rounded-tl-2xl pointer-events-none" />
+          <div className="absolute bottom-0 right-0 w-16 h-16 border-b border-r border-gold/10 rounded-br-2xl pointer-events-none" />
+
           {!started && !result && (
-            <div className="text-center">
-              <p className="text-6xl mb-6">🕰️</p>
-              <h3 className="font-serif text-2xl text-white mb-4">
-                Prêt à découvrir votre destination idéale ?
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center py-6"
+            >
+              {/* Animated compass */}
+              <div className="relative w-20 h-20 mx-auto mb-8">
+                <div className="absolute inset-0 rounded-full border-2 border-dashed border-accent/30 animate-vortex" />
+                <div className="absolute inset-2 rounded-full border border-gold/20 animate-vortex-reverse" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-3xl">🧭</span>
+                </div>
+              </div>
+              <h3 className="font-serif text-2xl text-white mb-3">
+                Quel voyageur temporel êtes-vous ?
               </h3>
-              <p className="text-gray-400 mb-8">
-                Un quiz rapide de 4 questions pour trouver l'époque qui vous correspond le mieux.
+              <p className="text-gray-500 mb-8 max-w-sm mx-auto text-sm leading-relaxed">
+                Chaque réponse affine notre algorithme de recommandation chrono-dimensionnelle.
               </p>
               <button
                 onClick={() => setStarted(true)}
-                className="px-8 py-3 bg-gold text-dark font-bold rounded-full hover:bg-gold-light transition-all duration-300 uppercase tracking-widest text-sm"
+                className="group relative px-8 py-3.5 bg-gradient-to-r from-accent to-accent-light text-white font-semibold rounded-full hover:shadow-lg hover:shadow-accent/25 transition-all duration-300 uppercase tracking-widest text-sm"
               >
-                Commencer le quiz
+                <span className="relative z-10">Lancer le diagnostic</span>
               </button>
-            </div>
+            </motion.div>
           )}
 
           {started && !result && (
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentQ}
-                initial={{ opacity: 0, x: 30 }}
+                initial={{ opacity: 0, x: 40 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -30 }}
+                exit={{ opacity: 0, x: -40 }}
                 transition={{ duration: 0.4 }}
               >
-                {/* Progress */}
-                <div className="flex items-center justify-between mb-8">
-                  <span className="text-gold text-sm">
-                    Question {currentQ + 1}/{quizQuestions.length}
+                {/* Progress steps */}
+                <div className="flex items-center gap-2 mb-10">
+                  {quizQuestions.map((_, i) => (
+                    <div key={i} className="flex-1 flex items-center gap-2">
+                      <div
+                        className={`w-full h-1 rounded-full transition-all duration-500 ${
+                          i < currentQ
+                            ? 'bg-gold'
+                            : i === currentQ
+                            ? 'bg-gradient-to-r from-gold to-accent'
+                            : 'bg-dark-lighter'
+                        }`}
+                      />
+                    </div>
+                  ))}
+                  <span className="text-xs text-gray-600 ml-2 whitespace-nowrap">
+                    {currentQ + 1}/{quizQuestions.length}
                   </span>
-                  <div className="flex-1 mx-4 h-1 bg-dark-lighter rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gold rounded-full"
-                      initial={{ width: `${(currentQ / quizQuestions.length) * 100}%` }}
-                      animate={{
-                        width: `${((currentQ + 1) / quizQuestions.length) * 100}%`,
-                      }}
-                      transition={{ duration: 0.4 }}
-                    />
-                  </div>
                 </div>
 
-                <h3 className="font-serif text-xl md:text-2xl text-white mb-8">
+                <h3 className="font-serif text-xl md:text-2xl text-white mb-8 leading-snug">
                   {quizQuestions[currentQ].question}
                 </h3>
 
                 <div className="space-y-3">
                   {quizQuestions[currentQ].options.map((option, i) => (
-                    <button
+                    <motion.button
                       key={i}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.08 }}
                       onClick={() => handleAnswer(option)}
-                      className="w-full text-left px-6 py-4 rounded-xl border border-dark-border bg-dark-lighter text-gray-300 hover:border-gold/40 hover:text-gold hover:bg-gold/5 transition-all duration-300 group"
+                      className="w-full text-left px-5 py-4 rounded-xl border border-dark-border bg-dark/50 text-gray-300 hover:border-accent/40 hover:text-white hover:bg-accent/5 transition-all duration-300 group flex items-center gap-4"
                     >
-                      <span className="text-gold/40 group-hover:text-gold mr-3 font-mono text-sm">
-                        {String.fromCharCode(65 + i)}.
+                      <span className="w-8 h-8 shrink-0 rounded-lg bg-dark-lighter border border-dark-border flex items-center justify-center text-accent/50 group-hover:text-accent group-hover:border-accent/30 transition-colors font-serif text-sm">
+                        {optionLetters[i]}
                       </span>
-                      {option.label}
-                    </button>
+                      <span className="text-sm leading-relaxed">{option.label}</span>
+                    </motion.button>
                   ))}
                 </div>
               </motion.div>
@@ -131,45 +163,54 @@ export default function Quiz() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="text-center"
             >
-              <p className="text-gold uppercase tracking-wider text-sm mb-4">
-                Votre destination idéale
-              </p>
-
-              <div className="relative rounded-xl overflow-hidden mb-6 h-48">
-                <img
-                  src={result.image}
-                  alt={result.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t ${result.gradient}`} />
-                <div className="absolute bottom-4 left-4 text-left">
-                  <h3 className="font-serif text-3xl font-bold text-white">{result.title}</h3>
-                  <p className="text-white/80 text-sm">{result.subtitle}</p>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold/10 border border-gold/20 mb-4">
+                  <span className="w-1.5 h-1.5 bg-gold rounded-full" />
+                  <span className="text-gold text-xs uppercase tracking-widest">Résultat</span>
                 </div>
               </div>
 
-              <p className="text-gray-300 leading-relaxed mb-6">{result.description}</p>
+              <div className="relative rounded-xl overflow-hidden mb-6 group">
+                <img
+                  src={result.image}
+                  alt={result.title}
+                  className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-dark via-dark/40 to-transparent" />
+                <div className="absolute bottom-4 left-5 right-5">
+                  <p className="text-gold/70 text-xs uppercase tracking-[0.2em] mb-1">{result.epoch}</p>
+                  <h3 className="font-serif text-3xl font-bold text-white">{result.title}</h3>
+                  <p className="text-white/60 text-sm mt-1">{result.subtitle}</p>
+                </div>
+              </div>
 
-              <div className="flex items-center justify-center gap-4 mb-8">
-                <span className="text-gold font-bold text-lg">{result.price}</span>
-                <span className="text-gray-500">•</span>
-                <span className="text-gray-400">{result.duration}</span>
+              <p className="text-gray-400 leading-relaxed mb-6 text-sm">{result.description}</p>
+
+              <div className="flex items-center justify-center gap-6 mb-8 py-4 border-y border-dark-border">
+                <div className="text-center">
+                  <p className="text-gold font-bold text-lg">{result.price}</p>
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider">Prix</p>
+                </div>
+                <div className="w-px h-8 bg-dark-border" />
+                <div className="text-center">
+                  <p className="text-white font-bold text-lg">{result.duration}</p>
+                  <p className="text-[10px] text-gray-600 uppercase tracking-wider">Durée</p>
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <a
                   href="#booking"
-                  className="px-8 py-3 bg-gold text-dark font-bold rounded-full hover:bg-gold-light transition-all duration-300 uppercase tracking-widest text-sm"
+                  className="px-8 py-3 bg-gradient-to-r from-gold to-gold-light text-dark font-bold rounded-full hover:shadow-lg hover:shadow-gold/20 transition-all duration-300 uppercase tracking-widest text-sm"
                 >
                   Réserver ce voyage
                 </a>
                 <button
                   onClick={reset}
-                  className="px-8 py-3 border border-dark-border text-gray-400 rounded-full hover:border-gold/40 hover:text-gold transition-all duration-300 text-sm"
+                  className="px-8 py-3 border border-dark-border text-gray-500 rounded-full hover:border-accent/30 hover:text-accent transition-all duration-300 text-sm"
                 >
-                  Refaire le quiz
+                  Refaire le diagnostic
                 </button>
               </div>
             </motion.div>
