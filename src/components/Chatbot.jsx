@@ -2,9 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiChat, HiX, HiPaperAirplane } from 'react-icons/hi';
 import { chatbotSystemPrompt } from '../data/destinations';
+import { sanitizeInput, useKeyboardShortcut } from '../utils/hooks';
 
 const MISTRAL_API_KEY = import.meta.env.VITE_MISTRAL_API_KEY;
 const HAS_API = MISTRAL_API_KEY && MISTRAL_API_KEY !== 'your_mistral_api_key_here';
+
+const MAX_MESSAGE_LENGTH = 500;
+const MAX_MESSAGES_PER_SESSION = 50;
 
 const quickReplies = [
   "Quelles destinations proposez-vous ?",
@@ -111,10 +115,14 @@ export default function Chatbot() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
+  const messageCountRef = useRef(0);
   // Keep conversation history for Mistral API context
   const conversationRef = useRef([
     { role: 'system', content: chatbotSystemPrompt },
   ]);
+
+  // Keyboard shortcut to toggle chatbot
+  useKeyboardShortcut('k', () => setIsOpen((o) => !o), { ctrl: true });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -123,8 +131,22 @@ export default function Chatbot() {
   }, [messages, isTyping]);
 
   const sendMessage = async (text) => {
-    const userMsg = text || input.trim();
-    if (!userMsg || isTyping) return;
+    const rawMsg = text || input.trim();
+    if (!rawMsg || isTyping) return;
+
+    // Security: sanitize input & enforce limits
+    const userMsg = sanitizeInput(rawMsg, MAX_MESSAGE_LENGTH);
+    if (!userMsg) return;
+
+    // Rate limit: prevent spam
+    messageCountRef.current++;
+    if (messageCountRef.current > MAX_MESSAGES_PER_SESSION) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'bot', content: "Vous avez atteint la limite de messages pour cette session. Veuillez rafraîchir la page pour continuer." },
+      ]);
+      return;
+    }
 
     setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
     setInput('');
@@ -274,15 +296,18 @@ export default function Chatbot() {
               <input
                 type="text"
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => setInput(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
                 onKeyDown={handleKeyDown}
-                placeholder="Posez-moi vos questions sur les voyages temporels..."
+                maxLength={MAX_MESSAGE_LENGTH}
+                placeholder="Posez-moi vos questions… (Ctrl+K)"
                 className="flex-1 bg-dark-lighter border border-dark-border rounded-full px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold/40 transition-colors"
+                aria-label="Message au chatbot"
               />
               <button
                 onClick={() => sendMessage()}
-                disabled={!input.trim()}
+                disabled={!input.trim() || isTyping}
                 className="w-10 h-10 rounded-full bg-gold text-dark flex items-center justify-center hover:bg-gold-light transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                aria-label="Envoyer"
               >
                 <HiPaperAirplane size={16} className="rotate-90" />
               </button>

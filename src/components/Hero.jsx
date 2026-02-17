@@ -1,30 +1,27 @@
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
-
-// Animated counter hook
-function useCounter(target, duration = 2000) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    let start = 0;
-    const step = target / (duration / 16);
-    const timer = setInterval(() => {
-      start += step;
-      if (start >= target) {
-        setCount(target);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(start));
-      }
-    }, 16);
-    return () => clearInterval(timer);
-  }, [target, duration]);
-  return count;
-}
+import { useMemo } from 'react';
+import { useCounter } from '../utils/hooks';
 
 export default function Hero() {
-  const travelers = useCounter(2847);
-  const epochs = useCounter(12);
-  const satisfaction = useCounter(99);
+  const { count: travelers } = useCounter(2847);
+  const { count: epochs } = useCounter(12);
+  const { count: satisfaction } = useCounter(99);
+
+  // Memoize particles to avoid recreating on every render
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 30 }, (_, i) => ({
+        id: i,
+        colorClass: i % 3 === 0 ? 'bg-gold/30' : i % 3 === 1 ? 'bg-accent/20' : 'bg-white/10',
+        width: 2 + Math.random() * 4,
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        xOffset: Math.random() * 20 - 10,
+        duration: 3 + Math.random() * 5,
+        delay: Math.random() * 4,
+      })),
+    []
+  );
 
   return (
     <section
@@ -71,26 +68,26 @@ export default function Hero() {
 
       {/* Floating time particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(30)].map((_, i) => (
+        {particles.map((p) => (
           <motion.div
-            key={i}
-            className={`absolute rounded-full ${i % 3 === 0 ? 'bg-gold/30' : i % 3 === 1 ? 'bg-accent/20' : 'bg-white/10'}`}
+            key={p.id}
+            className={`absolute rounded-full ${p.colorClass}`}
             style={{
-              width: `${2 + Math.random() * 4}px`,
-              height: `${2 + Math.random() * 4}px`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              width: `${p.width}px`,
+              height: `${p.width}px`,
+              left: `${p.left}%`,
+              top: `${p.top}%`,
             }}
             animate={{
               y: [0, -40, 0],
-              x: [0, Math.random() * 20 - 10, 0],
+              x: [0, p.xOffset, 0],
               opacity: [0.1, 0.7, 0.1],
               scale: [0.8, 1.5, 0.8],
             }}
             transition={{
-              duration: 3 + Math.random() * 5,
+              duration: p.duration,
               repeat: Infinity,
-              delay: Math.random() * 4,
+              delay: p.delay,
               ease: 'easeInOut',
             }}
           />
