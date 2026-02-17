@@ -1,64 +1,102 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HiChat, HiX, HiPaperAirplane } from 'react-icons/hi';
-import { chatbotSystemPrompt, destinations } from '../data/destinations';
+import { chatbotSystemPrompt } from '../data/destinations';
+
+const MISTRAL_API_KEY = import.meta.env.VITE_MISTRAL_API_KEY;
+const HAS_API = MISTRAL_API_KEY && MISTRAL_API_KEY !== 'your_mistral_api_key_here';
 
 const quickReplies = [
   "Quelles destinations proposez-vous ?",
   "Quel est le prix d'un voyage ?",
   "Comment fonctionne le voyage temporel ?",
   "Quelle destination me recommandez-vous ?",
+  "Est-ce que c'est dangereux ?",
 ];
 
-// Simple local AI response logic (no API needed)
-function generateBotResponse(userMessage) {
+// ─── Mistral AI API call ───
+async function callMistralAPI(conversationHistory) {
+  // Try Vercel serverless proxy first, then direct API call
+  const endpoints = [
+    { url: '/api/chat', useAuth: false },
+    { url: 'https://api.mistral.ai/v1/chat/completions', useAuth: true },
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (endpoint.useAuth) {
+        if (!HAS_API) continue;
+        headers['Authorization'] = `Bearer ${MISTRAL_API_KEY}`;
+      }
+
+      const body = endpoint.useAuth
+        ? JSON.stringify({
+            model: 'mistral-small-latest',
+            messages: conversationHistory,
+            max_tokens: 300,
+            temperature: 0.7,
+          })
+        : JSON.stringify({ messages: conversationHistory });
+
+      const response = await fetch(endpoint.url, {
+        method: 'POST',
+        headers,
+        body,
+      });
+
+      if (!response.ok) continue;
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content) return content;
+    } catch {
+      continue;
+    }
+  }
+
+  return null; // All endpoints failed → will use fallback
+}
+
+// ─── Local fallback (rule-based) ───
+function generateFallbackResponse(userMessage) {
   const msg = userMessage.toLowerCase();
 
   if (msg.includes('bonjour') || msg.includes('salut') || msg.includes('hello') || msg.includes('hey')) {
     return "Bonjour et bienvenue chez TimeTravel Agency ! ✨ Je suis votre guide temporel. Comment puis-je vous aider à trouver le voyage parfait à travers le temps ?";
   }
-
   if (msg.includes('destination') || msg.includes('proposez') || msg.includes('où') || msg.includes('voyage')) {
     return "Nous proposons trois destinations exceptionnelles :\n\n🗼 **Paris 1889** — La Belle Époque et l'inauguration de la Tour Eiffel (12 500 € / 7 jours)\n\n🦕 **Crétacé -65M** — L'ère des dinosaures dans toute sa splendeur (18 900 € / 5 jours)\n\n🎨 **Florence 1504** — La Renaissance italienne avec Michel-Ange (14 200 € / 6 jours)\n\nLaquelle vous intrigue le plus ?";
   }
-
   if (msg.includes('prix') || msg.includes('coût') || msg.includes('combien') || msg.includes('tarif') || msg.includes('cher')) {
-    return "Nos tarifs tout inclus :\n\n• Paris 1889 : **12 500 €** (7 jours)\n• Crétacé -65M : **18 900 €** (5 jours)\n• Florence 1504 : **14 200 €** (6 jours)\n\nChaque forfait inclut le transport temporel, l'hébergement d'époque, les repas et un guide chrononaute personnel. Un investissement unique pour une expérience inoubliable !";
+    return "Nos tarifs tout inclus :\n\n• Paris 1889 : **12 500 €** (7 jours)\n• Crétacé -65M : **18 900 €** (5 jours)\n• Florence 1504 : **14 200 €** (6 jours)\n\nChaque forfait inclut le transport temporel, l'hébergement d'époque, les repas et un guide chrononaute personnel.";
   }
-
   if (msg.includes('paris') || msg.includes('eiffel') || msg.includes('belle époque') || msg.includes('1889')) {
-    return "Paris 1889, un choix magnifique ! 🗼 Vous vivrez l'effervescence de l'Exposition Universelle, assisterez à l'inauguration de la Tour Eiffel et vous promènerez sur les Champs-Élysées illuminés au gaz. Les cafés littéraires du Quartier Latin et les spectacles du Moulin Rouge complètent cette expérience inoubliable. 7 jours à 12 500 €.";
+    return "Paris 1889, un choix magnifique ! 🗼 Vivez l'effervescence de l'Exposition Universelle, assistez à l'inauguration de la Tour Eiffel et promenez-vous sur les Champs-Élysées illuminés au gaz. 7 jours à 12 500 €.";
   }
-
   if (msg.includes('dinosaure') || msg.includes('crétacé') || msg.includes('préhistoire') || msg.includes('65m') || msg.includes('nature')) {
-    return "Le Crétacé, l'aventure ultime ! 🦕 Imaginez : observer un T-Rex depuis notre bulle d'observation sécurisée, traverser des forêts de fougères géantes et admirer un ciel nocturne sans aucune pollution lumineuse. C'est notre destination la plus spectaculaire. 5 jours à 18 900 €.";
+    return "Le Crétacé, l'aventure ultime ! 🦕 Observez un T-Rex depuis notre bulle d'observation sécurisée, traversez des forêts de fougères géantes et admirez un ciel nocturne sans pollution lumineuse. 5 jours à 18 900 €.";
   }
-
   if (msg.includes('florence') || msg.includes('renaissance') || msg.includes('michel-ange') || msg.includes('1504') || msg.includes('art')) {
-    return "Florence 1504, le berceau de la Renaissance ! 🎨 Visitez l'atelier de Michel-Ange pendant la création du David, assistez aux cours de Léonard de Vinci et flânez dans les somptueux palais des Médicis. La gastronomie toscane authentique complétera cette immersion culturelle. 6 jours à 14 200 €.";
+    return "Florence 1504, le berceau de la Renaissance ! 🎨 Visitez l'atelier de Michel-Ange pendant la création du David et flânez dans les palais des Médicis. 6 jours à 14 200 €.";
   }
-
   if (msg.includes('recommand') || msg.includes('conseil') || msg.includes('choisir') || msg.includes('idéal') || msg.includes('quel')) {
-    return "Pour vous recommander la destination idéale, dites-moi : préférez-vous l'effervescence culturelle (→ Paris 1889), l'aventure nature (→ Crétacé -65M) ou l'art et l'architecture (→ Florence 1504) ? Vous pouvez aussi essayer notre quiz personnalisé dans la section dédiée ! ✨";
+    return "Préférez-vous l'effervescence culturelle (→ Paris 1889), l'aventure nature (→ Crétacé -65M) ou l'art et l'architecture (→ Florence 1504) ? Vous pouvez aussi essayer notre quiz personnalisé ! ✨";
   }
-
   if (msg.includes('sécurité') || msg.includes('sûr') || msg.includes('danger') || msg.includes('risque')) {
-    return "Votre sécurité est notre priorité absolue ! Nos capsules temporelles utilisent une technologie de bulle d'observation qui vous rend intouchable. Vous pouvez interagir avec l'époque sans jamais être en danger. De plus, chaque voyage est encadré par des chrononautes certifiés. 🛡️";
+    return "Votre sécurité est notre priorité ! Nos capsules temporelles utilisent une bulle d'observation qui vous rend intouchable. Chaque voyage est encadré par des chrononautes certifiés. 🛡️";
   }
-
   if (msg.includes('comment') || msg.includes('fonctionne') || msg.includes('technologie') || msg.includes('temporal')) {
-    return "Notre technologie de déplacement temporel repose sur la distorsion quantique contrôlée. Le transit ne prend que quelques secondes de temps subjectif. Vous êtes placé dans une bulle d'observation qui vous permet d'interagir avec l'époque tout en préservant le cours de l'histoire. Fascinant, n'est-ce pas ? ⚡";
+    return "Notre technologie repose sur la distorsion quantique contrôlée. Le transit ne prend que quelques secondes. Vous êtes dans une bulle d'observation qui préserve le cours de l'histoire. ⚡";
   }
-
   if (msg.includes('réserv') || msg.includes('book') || msg.includes('inscri')) {
-    return "Pour réserver, rendez-vous dans la section 'Réservation' de notre site ! Sélectionnez votre destination, vos dates préférées et le nombre de voyageurs. Notre équipe vous contactera sous 24h pour finaliser votre aventure temporelle. 📋";
+    return "Pour réserver, rendez-vous dans la section 'Réservation' de notre site ! Sélectionnez votre destination, vos dates et le nombre de voyageurs. 📋";
   }
-
   if (msg.includes('merci') || msg.includes('super') || msg.includes('génial') || msg.includes('parfait')) {
-    return "Avec plaisir ! N'hésitez pas si vous avez d'autres questions. Chez TimeTravel Agency, chaque voyage est une aventure unique. J'espère vous compter bientôt parmi nos chrono-voyageurs ! ✨";
+    return "Avec plaisir ! N'hésitez pas si vous avez d'autres questions. J'espère vous compter bientôt parmi nos chrono-voyageurs ! ✨";
   }
 
-  return "Question intéressante ! En tant qu'expert en voyages temporels, je vous recommande d'explorer nos trois destinations uniques : Paris 1889, le Crétacé -65M ou Florence 1504. Posez-moi des questions sur l'une d'entre elles, ou essayez notre quiz pour trouver votre voyage idéal ! 🕰️";
+  return "Question intéressante ! Je vous recommande d'explorer nos trois destinations : Paris 1889, le Crétacé -65M ou Florence 1504. Posez-moi des questions sur l'une d'entre elles ! 🕰️";
 }
 
 export default function Chatbot() {
@@ -67,12 +105,16 @@ export default function Chatbot() {
     {
       role: 'bot',
       content:
-        "Bienvenue chez TimeTravel Agency ! ✨ Je suis votre assistant virtuel. Posez-moi vos questions sur nos destinations temporelles ou laissez-moi vous guider vers le voyage parfait !",
+        "Bienvenue chez TimeTravel Agency ! ✨ Je suis votre assistant virtuel propulsé par IA. Posez-moi vos questions sur nos destinations temporelles ou laissez-moi vous guider vers le voyage parfait !",
     },
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef(null);
+  // Keep conversation history for Mistral API context
+  const conversationRef = useRef([
+    { role: 'system', content: chatbotSystemPrompt },
+  ]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -80,20 +122,39 @@ export default function Chatbot() {
     }
   }, [messages, isTyping]);
 
-  const sendMessage = (text) => {
+  const sendMessage = async (text) => {
     const userMsg = text || input.trim();
-    if (!userMsg) return;
+    if (!userMsg || isTyping) return;
 
     setMessages((prev) => [...prev, { role: 'user', content: userMsg }]);
     setInput('');
     setIsTyping(true);
 
-    // Simulate typing delay
-    setTimeout(() => {
-      const botResponse = generateBotResponse(userMsg);
-      setMessages((prev) => [...prev, { role: 'bot', content: botResponse }]);
-      setIsTyping(false);
-    }, 800 + Math.random() * 600);
+    // Add user message to conversation history
+    conversationRef.current.push({ role: 'user', content: userMsg });
+
+    try {
+      // Try Mistral AI API first
+      const aiResponse = await callMistralAPI(conversationRef.current);
+
+      if (aiResponse) {
+        // AI responded — add to history & display
+        conversationRef.current.push({ role: 'assistant', content: aiResponse });
+        setMessages((prev) => [...prev, { role: 'bot', content: aiResponse }]);
+      } else {
+        // Fallback to local rule-based
+        const fallback = generateFallbackResponse(userMsg);
+        conversationRef.current.push({ role: 'assistant', content: fallback });
+        setMessages((prev) => [...prev, { role: 'bot', content: fallback }]);
+      }
+    } catch {
+      // Error → fallback
+      const fallback = generateFallbackResponse(userMsg);
+      conversationRef.current.push({ role: 'assistant', content: fallback });
+      setMessages((prev) => [...prev, { role: 'bot', content: fallback }]);
+    }
+
+    setIsTyping(false);
   };
 
   const handleKeyDown = (e) => {
@@ -155,7 +216,7 @@ export default function Chatbot() {
                 <p className="text-white font-semibold text-sm">TimeTravel Assistant</p>
                 <p className="text-green-400 text-xs flex items-center gap-1">
                   <span className="w-1.5 h-1.5 bg-green-400 rounded-full inline-block" />
-                  En ligne
+                  {HAS_API ? 'IA Mistral connectée' : 'En ligne'}
                 </p>
               </div>
             </div>
@@ -215,7 +276,7 @@ export default function Chatbot() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Posez-moi vos questions..."
+                placeholder="Posez-moi vos questions sur les voyages temporels..."
                 className="flex-1 bg-dark-lighter border border-dark-border rounded-full px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gold/40 transition-colors"
               />
               <button
